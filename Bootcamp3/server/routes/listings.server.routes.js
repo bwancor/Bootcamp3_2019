@@ -23,6 +23,21 @@ router.route('/')
 /*
   The ':' specifies a URL parameter. 
  */
+
+router.route('/create/:clistingId')
+  .get(listings.create)
+  .put(getCoordinates, listings.update)
+  .delete(listings.delete);
+
+router.route('/update/:ulistingId')
+  .get(listings.update)
+  .put(getCoordinates, listings.update)
+  .delete(listings.update);
+
+router.route('/delete/:dlistingId')
+  .get(listings.delete)
+  .delete(listings.delete);
+
 router.route('/:listingId')
   .get(listings.read)
   .put(getCoordinates, listings.update)
@@ -42,5 +57,8 @@ router.route('/:listingId')
   get, update, or delete that specific listing (depending on the HTTP verb specified)
  */
 router.param('listingId', listings.listingByID);
+router.param('dlistingId', listings.delete);
+router.param('ulistingId', listings.update);
+router.param('clistingId', listings.create);
 
 module.exports = router;

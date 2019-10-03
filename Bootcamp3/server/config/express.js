@@ -32,12 +32,13 @@ module.exports.init = function() {
      use the listings router middleware for requests to the api 
      check the variables list above
   */
-  app.use('/api/listings');
+  app.use('/api/listings', listingsRouter);
 
 
    /* Request Handler for coordinates
       This is a server wrapper around Open Cage Data Geocoding API to get latitude + longitude coordinates from address */
   app.post('/api/coordinates', getCoordinates, function(req, res) {
+    console.log('api coordinates app.post');
     res.send(req.results);
   });
 
@@ -52,7 +53,9 @@ module.exports.init = function() {
       The path.resolve() method returns a string and resolves a sequence of paths or path segments into an absolute path.
       If no path segments are passed, path.resolve() will return the absolute path of the current working directory.
    */
-   //res.sendFile(path.resolve(...));
+  
+    console.log('going home');
+    res.sendFile(path.join(__dirname + '/../../client/index.html'));
   });
   
   return app;

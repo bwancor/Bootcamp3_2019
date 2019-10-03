@@ -2,7 +2,8 @@
 /* Dependencies */
 var mongoose = require('mongoose'), 
     Listing = require('../models/listings.server.model.js'),
-    coordinates = require('./coordinates.server.controller.js');
+    coordinates = require('./coordinates.server.controller.js'),
+    config = require('../config/config.js');
     
 /*
   In this file, you should use Mongoose queries in order to retrieve/add/remove/update listings.
@@ -21,61 +22,85 @@ var mongoose = require('mongoose'),
   https://adrianmejia.com/getting-started-with-node-js-modules-require-exports-imports-npm-and-beyond/
  */
 
+mongoose.connect(config.db.uri, { useNewUrlParser: true });
+var Listings = mongoose.model('Listing', Listing.schema);
+
 /* Create a listing */
-exports.create = function(req, res) {
-
+exports.create = function(req, res, next, params) {
+  
   /* Instantiate a Listing */
-  var listing = new Listing(req.body);
+  var listing = JSON.parse(params);
 
-  /* save the coordinates (located in req.results if there is an address property) */
-  if(req.results) {
-    listing.coordinates = {
-      latitude: req.results.lat, 
-      longitude: req.results.lng
-    };
-  }
- 
-  /* Then save the listing */
-  listing.save(function(err) {
-    if(err) {
-      console.log(err);
-      res.status(400).send(err);
-    } else {
-      res.json(listing);
-      console.log(listing)
-    }
-  });
+  var mylisting = new Listing({
+          code: listing.code,
+          name: listing.name.replace(/\+/g, ' ').replace(/%20/g, ','),
+          coordinates: listing.coordinates,
+          address: listing.address.replace(/\+/g, ' ').replace(/%20/g, ',')
+      }).save();
+  
+  next();
 };
 
 /* Show the current listing */
 exports.read = function(req, res) {
   /* send back the listing as json from the request */
-  res.json(req.listing);
+  var listing = req.listing
+  
+  Listings.findOne({ 'code': listing.code }, function(err, foundListing) {
+    if (foundListing != null)
+      res.json(foundListing);
+    else
+      res.json('Listing not found: %s', listing.code);
+  });
 };
 
 /* Update a listing - note the order in which this function is called by the router*/
-exports.update = function(req, res) {
-  var listing = req.listing;
+exports.update = function(req, res, next, params) {
+  
+  var listing = JSON.parse(params);
+
+  var newListing = new Listing({
+          code: listing.code,
+          name: listing.name.replace(/\+/g, ' ').replace(/%20/g, ','),
+          coordinates: listing.coordinates,
+          address: listing.address.replace(/\+/g, ' ').replace(/%20/g, ',')
+      });
 
   /* Replace the listings's properties with the new properties found in req.body */
- 
-  /*save the coordinates (located in req.results if there is an address property) */
- 
-  /* Save the listing */
+  Listings.findOne({ 'code': newListing.code }, function(err, foundListing) {
+    if (foundListing != null) {
+      foundListing.name = newListing.name;
+      foundListing.coordinates = newListing.coordinates;
+      foundListing.address = newListing.address;
+      foundListing.save();
+    } 
+  });
 
+  next();
 };
 
 /* Delete a listing */
-exports.delete = function(req, res) {
-  var listing = req.listing;
-
-  /* Add your code to remove the listins */
-
+exports.delete = function(req, res, next, id) {
+  Listings.findOneAndRemove({ 'code': id }, function(err, foundListing) {
+    if(foundListing == null) 
+      res.json('Listing not found: %s', id);
+    else {
+      res.json(foundListing);
+    }
+    
+    next();
+  });
 };
 
 /* Retreive all the directory listings, sorted alphabetically by listing code */
 exports.list = function(req, res) {
-  /* Add your code */
+  Listings.find({ }, 
+    function(err, results) {
+      if (results != null) res.json(results.sort((a, b) => a.code < b.code ? -1 : +(a.code > b.code)));
+      else if (err) { console.log(err); res.json('Unable to retrieve listings.'); }
+      else res.json('No listings found.');
+    }
+  );
 };
 
 /* 
@@ -86,12 +111,12 @@ exports.list = function(req, res) {
         then finally call next
  */
 exports.listingByID = function(req, res, next, id) {
-  Listing.findById(id).exec(function(err, listing) {
-    if(err) {
-      res.status(400).send(err);
-    } else {
+  Listings.findOne({'code':id}).exec(function(err, listing) {
+    if(listing != null) {
       req.listing = listing;
       next();
+    } else {
+      res.status(400).send(err);
     }
   });
 };
